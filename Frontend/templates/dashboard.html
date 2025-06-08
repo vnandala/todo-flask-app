@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Todo Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin: 8px 0; }
+    .task-item { display: flex; align-items: center; gap: 10px; }
+    .task-item input[type="text"] { flex: 1; }
+  </style>
+</head>
+<body>
+  <h2>Welcome to Your Dashboard</h2>
+
+  <form id="todoForm">
+    <input type="text" id="taskInput" placeholder="Enter a new task" required />
+    <button type="submit">Add Task</button>
+  </form>
+
+  <ul id="todoList"></ul>
+
+  <button onclick="logout()">Logout</button>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const todoList = document.getElementById("todoList");
+
+    if (!token) {
+      window.location.href = "/login";
+    }
+
+    async function fetchTodos() {
+      const res = await fetch("/todos", {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const data = await res.json();
+      displayTodos(data);
+    }
+
+    function displayTodos(todos) {
+      todoList.innerHTML = "";
+      todos.forEach(todo => {
+        const li = document.createElement("li");
+        li.classList.add("task-item");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.id = todo.id;
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = todo.task;
+
+        const updateBtn = document.createElement("button");
+        updateBtn.textContent = "Update";
+        updateBtn.onclick = async () => {
+          const updatedTask = input.value;
+          await fetch(`/todos/${todo.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ task: updatedTask })
+          });
+          fetchTodos();
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Delete";
+        deleteBtn.onclick = async () => {
+          await fetch(`/todos/${todo.id}`, {
+            method: "DELETE",
+            headers: {
+              "Authorization": "Bearer " + token
+            }
+          });
+          fetchTodos();
+        };
+
+        li.appendChild(checkbox);
+        li.appendChild(input);
+        li.appendChild(updateBtn);
+        li.appendChild(deleteBtn);
+        todoList.appendChild(li);
+      });
+    }
+
+    document.getElementById("todoForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const task = document.getElementById("taskInput").value;
+      await fetch("/todos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ task })
+      });
+      document.getElementById("taskInput").value = "";
+      fetchTodos();
+    };
+
+    function logout() {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+
+    fetchTodos();
+  </script>
+</body>
+</html>
